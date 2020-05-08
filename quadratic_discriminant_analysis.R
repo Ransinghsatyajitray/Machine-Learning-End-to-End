@@ -1,13 +1,13 @@
-# Support Vector Machine
+# Quadratic Discriminant Analysis
 
 # load the package
-library(kernlab)
+library(MASS)
 data(iris)
 # fit model
-fit <- ksvm(Species~., data=iris)
+fit <- qda(Species~., data=iris)
 # summarize the fit
 print(fit)
 # make predictions
-predictions <- predict(fit, iris[,1:4], type="response")
+predictions <- predict(fit, iris[,1:4])$class
 # summarize accuracy
 table(predictions, iris$Species)

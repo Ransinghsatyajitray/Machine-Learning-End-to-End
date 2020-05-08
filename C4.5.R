@@ -1,11 +1,11 @@
-# Random Forest
+# C4.5
 
 # load the package
-library(randomForest)
+library(RWeka)
 # load data
 data(iris)
 # fit model
-fit <- randomForest(Species~., data=iris)
+fit <- J48(Species~., data=iris)
 # summarize the fit
 print(fit)
 # make predictions

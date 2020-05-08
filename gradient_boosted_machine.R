@@ -3,13 +3,14 @@
 # load the package
 library(gbm)
 # load data
-data(longley)
+data(iris)
 # fit model
-fit <- gbm(Employed~., data=longley, distribution="gaussian", n.minobsinnode=1)
+fit <- gbm(Species~., data=iris, distribution="multinomial")
 # summarize the fit
 print(fit)
 # make predictions
-predictions <- predict(fit, longley[,1:6], n.trees=1)
+probabilities <- predict(fit, iris[,1:4], n.trees=1)
+predictions <-  colnames(probabilities)[apply(probabilities, 1, which.max)]  #Checkout how it works
 # summarize accuracy
-mse <- mean((longley$Employed - predictions)^2)
-print(mse)
+table(predictions, iris$Species)
+

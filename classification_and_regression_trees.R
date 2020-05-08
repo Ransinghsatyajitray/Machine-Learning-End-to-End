@@ -3,20 +3,13 @@
 # load the package
 library(rpart)
 # load data
-data(longley)
+data(iris)
 # fit model
-fit <- rpart(Employed~., data=longley, control=rpart.control(minsplit=5))
+fit <- rpart(Species~., data=iris)
 # summarize the fit
 print(fit)
 # make predictions
-predictions <- predict(fit, longley[,1:6])
+predictions <- predict(fit, iris[,1:4], type="class")
 # summarize accuracy
-mse <- mean((longley$Employed - predictions)^2)
-print(mse)
+table(predictions, iris$Species)
 
-
-
-
-#The diagrams for the decision tree comes from rpart.plot package
-
-rpart.plot::rpart.plot(fit)

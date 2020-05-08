@@ -2,16 +2,12 @@
 
 # load the package
 library(nnet)
-# load data
-data(longley)
-x <- longley[,1:6]
-y <- longley[,7]
+data(iris)
 # fit model
-fit <- nnet(Employed~., longley, size=12, maxit=500, linout=T, decay=0.01)
+fit <- nnet(Species~., data=iris, size=4, decay=0.0001, maxit=500)
 # summarize the fit
 print(fit)
 # make predictions
-predictions <- predict(fit, x, type="raw")
+predictions <- predict(fit, iris[,1:4], type="class")
 # summarize accuracy
-mse <- mean((y - predictions)^2)
-print(mse)
+table(predictions, iris$Species)
