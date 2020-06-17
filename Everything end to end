@@ -1,0 +1,366 @@
+#PEDAGOGY OF ANALYTICS FRAMEWORK IN R.----
+
+# 1. DATA IMPORT:---- 
+# a. Using RODBC
+
+# RODBC package provides an interface to database sources supporting on ODBC interface. 
+# This package is widely used because it needs the same R code to import data from different database system.
+# database systems such as, MySQL, Microsoft SQL Server, Oracle, PostgreSQL.
+
+library(RODBC)
+connection <- odbcConnect(“Sample_Database”, uid=”Name”, case=”tolower”) # uid, pwd for authentication, case-> table and column names case (This is different for different databases eg. mysql and postgresql > lower, msaccess > no change, IBM DB2 > toupper)
+
+# eg 
+connection <- odbcDriverConnect(
+"Driver=SQL Server; Server=servername\\instance; Database=databasename; UID=username; Pwd=password"
+)
+
+
+df <- sqlQuery(connection, “Select_Column, Condition”) # Submit a query to an ODBC database and return the results
+
+crimedat <- sqlFetch(connection, "Data_base_table_name") # Read a table from an ODBC database into a data frame
+
+sqlSave(connection, Sample_Dataframe_in_R, tablename = sqtable_in_db, addPK=TRUE,append= TRUE/FALSE) # Saving updates to database
+
+
+
+
+# 2. DATA STRUCTURE:----
+# str()
+# dim()
+# summary()
+# skimr package skim function
+# skewness from PerformanceAnalytics Package
+# kmeans using variables except Y to find cluster if the data is less.
+# Frame all sort to questions to be asked to the stakeholders (knowledge based)
+
+
+
+
+# 3. DATA VISUALIZATION:---- 
+# ggplot2, <See the graph matrix>, DataExporer
+library(help="DataExplorer")
+
+
+
+
+
+
+
+#_______________________________
+# plot_bar
+# plot_boxplot:  Create boxplot for continuous features
+# plot_correlation: Create correlation heatmap for discrete features
+# plot_histogram: Plot histogram
+# plot_str: Visualize data structure
+# plot_missing:  Plot missing value profile
+# plot_qq: Plot QQ plot (to check for normality)
+#  
+
+#_______________________________
+#ggplot2:
+# X Cont, Y Cont : line, point, jitter, 2d_density
+# X Cont, Y Discrete: histogram, freqploy, area
+# X Discrete, Y Continuous: box plot, col, pie (ggplot(df,x="",y=value,fill=group))+geom_col(width=1)+coord_polar("y",start=0))
+# X Discrete, Y Discrete Count: bar (stack, fill, dodge)
+
+
+
+
+  
+
+# 4. HYPOTHESIS ANAYSIS:----
+# aov(numeric~character_var, data)
+# aov(numeric~character_var1 +character_var2, data)
+# t.test(x, y, paired= true, alternative="two.sided")
+# t.test(x, y)
+# mood.test(x,y,alternative="two.sided)
+# chisq.test(count_data)
+
+
+
+
+# 5. INFERENCE FROM STRUCTURE, VISUALIZATION  AND HYPOTHESIS ANALYSIS:----
+
+
+# 7. CORRELATION TESTING USING CORRELATION FUNNEL AND COR & CORRPLOT:----
+#_______________________________
+#correlationfunnel:
+# Exploratory data analysis (EDA) involves looking at feature-target relationships independently. This process is very time consuming even for small data sets.
+
+# Modeling and Machine Learning problems often involve a response (Enrolled in TERM_DEPOSIT, yes/no) and many predictors (AGE, JOB, MARITAL, etc). Our job is to 
+# determine which predictors are related to the response. We can do this through Binary Correlation Analysis.
+
+#Step1:
+library(biclust)
+# Binary Correlation Analysis is the process of converting continuous (numeric) and categorical (character/factor) data to binary features. We can then perform a correlation analysis to see if there is predictive value between the features and the response (target).
+# Step 1: Convert to Binary Format
+# The first step is converting the continuous and categorical data into binary (0/1) format. 
+# Numeric Features: Are binned into ranges or if few unique levels are binned by their value, and then converted to binary features via one-hot encoding
+# Categorical Features: Are binned by one-hot encoding
+
+marketing_campaign_binarized_tbl <- marketing_campaign_tbl %>%
+  select(-variables_that_are_not_req) %>%
+  binarize(n_bins = 4)
+
+marketing_campaign_correlated_tbl <- marketing_campaign_binarized_tbl %>%
+  correlate(target = TERM_DEPOSIT__yes)
+
+marketing_campaign_correlated_tbl %>%
+  plot_correlation_funnel(interactive = FALSE)
+
+
+marketing_campaign_correlated_tbl %>%
+  filter(feature %in% c("DURATION", "POUTCOME", "PDAYS",
+                        "PREVIOUS", "CONTACT", "HOUSING")) %>%
+  plot_correlation_funnel(interactive = FALSE, limits = c(-0.4, 0.4))
+
+
+#Correlation heat map using cor and corrplot
+
+
+
+# 8. TRAIN TEST SPLIT:----
+install.packages("rsample")
+library(rsample)
+set.seed(123)
+df_initial_spilt <- inital_split(data_frame, prop=0.8)
+
+
+
+a <- initial_split(mtcars,prop=0.8)
+
+#assessing the training data
+training(a)
+#assessing the testing data
+testing(a)
+
+
+
+# 9. DATA PREPARATION:purrr, recipes, janitor ---- 
+library(recipes)
+
+recipe_for_data_processing <- recipe(Y~., data=training(a) ) %>% 
+  
+# Encode Categorical Data Types
+  step_string2factor(all_nominal()) %>%
+  step_knnimpute(X1,X2,X3,X4,neighbors = 5) %>% 
+  step_YeoJohnson(skewed_variables) %>% 
+  step_center(all_nominal()) %>% 
+  step_scale(all_nominal()) %>% 
+  step_zv(all_nominal()) %>% 
+  prep()
+
+
+training_preprocessed_tbl <- preprocessing_recipe %>% bake(training(df_initial_split))
+testing_preprocessed_tbl <- preprocessing_recipe %>% bake(testing(df_initial_split))
+
+
+
+# Preprocessing_steps:
+# 1. impute : step_knnimpute
+# 2. individual transformation: step_YeoJohnson
+# 3. discretize: step_num2factor
+# 4. create dummy variable: step_dummy
+# 5. normalize: center, scale, range
+# 6. removing zv variable: step_zv(all_numeric())
+# 
+# > all_nominal()
+# > name of variable without qoute
+# > start_with("Sepal"), -contain("width")
+
+
+
+
+# 10. MODEL BUILDING:  caret, parsnip, h2o ----
+
+
+library(caret)
+library(doMC)
+registerDoMC(cores=3)
+
+
+
+# Classification model:
+# prepare simple test suite
+control <- trainControl(method="cv", number=5)
+seed <- 7
+metric <- "Accuracy"
+
+# Linear Discriminant Analysis
+set.seed(seed)
+fit.lda <- train(Y~., data=training_preprocessed_tbl, method="lda", metric=metric, preProc=c("center", "scale"), preProc=c("center", "scale"), trControl=control)
+# Logistic Regression
+set.seed(seed)
+fit.glm <- train(Y~., data=training_preprocessed_tbl, method="glm", metric=metric, preProc=c("center", "scale"), trControl=control)
+# Neural net
+set.seed(seed)
+tunegrid <- expand.grid(.size=seq(1:10), .decay=c(0, .1, 1, 2))
+maxSize <- max(tunegrid$.size)
+numWeights <- 1*(maxSize * (length(training_preprocessed_tbl) + 1) + maxSize + 1)
+maxit <- 2000
+fit.nnet <- train(Y~., data=training_preprocessed_tbl, method="nnet", metric=metric, tuneGrid=tunegrid, preProc=c("center", "scale", "spatialSign"), trControl=control, trace=FALSE, maxit=maxit, MaxNWts=numWeights)
+
+# Support Vector Machines with Linear Kernel
+set.seed(seed)
+sigma <- sigest(as.matrix(x))
+tunegrid <- expand.grid(.C=2^(seq(-4, 4)))
+fit.svmLinear <- train(diabetes~., data=dataset, method="svmLinear", metric=metric, tuneGrid=tunegrid, preProc=c("center", "scale"), trControl=control)
+
+# Support Vector Machines with Polynomial Kernel
+set.seed(seed)
+fit.svmPoly <- train(diabetes~., data=dataset, method="svmPoly", metric=metric, preProc=c("center", "scale"), trControl=control, fit=FALSE)
+
+# Support Vector Machines with Radial Basis Function Kernel
+set.seed(seed)
+fit.svmRadialCost <- train(diabetes~., data=dataset, method="svmRadialCost", metric=metric, preProc=c("center", "scale"), trControl=control, fit=FALSE)
+
+# Support Vector Machines with Radial Basis Function Kernel
+set.seed(seed)
+sigma <- sigest(as.matrix(x))
+tunegrid <- expand.grid(.sigma=sigma, .C=2^(seq(-4, 4)))
+fit.svmRadial <- train(diabetes~., data=dataset, method="svmRadial", metric=metric, tuneGrid=tunegrid, preProc=c("center", "scale"), trControl=control, fit=FALSE)
+
+# kNN
+set.seed(seed)
+tunegrid <- expand.grid(.k=c(4*(0:5)+1, 20*(1:5)+1, 50*(2:9)+1))
+fit.knn <- train(diabetes~., data=dataset, method="knn", metric=metric, tuneGrid=tunegrid, preProc=c("center", "scale"), trControl=control)
+
+# CART
+set.seed(seed)
+tunegrid <- expand.grid(.cp=seq(0,0.1,by=0.01))
+fit.cart <- train(diabetes~., data=dataset, method="rpart", metric=metric, tuneGrid=tunegrid, trControl=control)
+
+
+# Boosting Ensemble Algorithms
+
+# AdaBoost.M1
+set.seed(seed)
+fit.AdaBoost.M1 <- train(diabetes~., data=dataset, method="AdaBoost.M1", metric=metric, trControl=control)
+# Bagged AdaBoost
+set.seed(seed)
+fit.AdaBag <- train(diabetes~., data=dataset, method="AdaBag", metric=metric, trControl=control)
+
+# Boosted Generalized Additive Model
+set.seed(seed)
+fit.gamboost <- train(diabetes~., data=dataset, method="gamboost", metric=metric, trControl=control)
+# Boosted Generalized Linear Model
+set.seed(seed)
+fit.glmboost <- train(diabetes~., data=dataset, method="glmboost", metric=metric, trControl=control)
+
+# C5.0
+set.seed(seed)
+tunegrid <- expand.grid(.trials=c(5,10,15,20), .model=c("rules", "rules"), .winnow=c(TRUE, FALSE))
+fit.c50 <- train(diabetes~., data=dataset, method="C5.0", metric=metric, tuneGrid=tunegrid, trControl=control)
+
+# eXtreme Gradient Boosting
+set.seed(seed)
+fit.xgbLinear <- train(diabetes~., data=dataset, method="xgbLinear", metric=metric, trControl=control)
+# eXtreme Gradient Boosting
+set.seed(seed)
+fit.xgbTree <- train(diabetes~., data=dataset, method="xgbTree", metric=metric, trControl=control)
+
+# Random Forest (classical)
+set.seed(seed)
+fit.rf <- train(diabetes~., data=dataset, method="rf", metric=metric, trControl=control)
+
+
+
+
+
+#Eliminating features:
+#Rank Features By Importance
+#++++++++++++++++++++++++++++
+
+
+# ensure results are repeatable
+set.seed(7)
+# load the library
+library(mlbench)
+library(caret)
+# load the dataset
+data(PimaIndiansDiabetes)
+# prepare training scheme
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+# train the model
+model <- train(diabetes~., data=PimaIndiansDiabetes, method="lvq", preProcess="scale", trControl=control)
+
+# estimate variable importance
+importance <- varImp(model, scale=FALSE)
+# summarize importance
+print(importance)
+# plot importance
+plot(importance)
+
+
+
+
+
+
+# 11. MODEL SAVING AND PERFORMANCE METRIC CALCULATION:----
+
+##1.
+model_list <- list(Linear_Discriminant_Analysis=fit.lda,
+                   Logistic_Regression=fit.glm,
+                   SVM_Radial=fit.svmRadial,
+                   knn=fit.knn,
+                   Naive_Bayes=fit.nb,
+                   CART=fit.cart,
+                   C50_Model=fit.c50,
+                   Bagged_CART=fit.treebag,
+                   Random_Forest=fit.rf,
+                   stochastic_Gradient_Boosting=fit.gbm)
+res <- resamples(model_list)
+summary(res)
+
+
+
+# boxplot comparison
+bwplot(res)
+# Dot-plot comparison
+dotplot(res)
+
+
+
+#Setting the working directory
+setwd("directory")
+#Save the model:
+saveRDS(caretmodel,"production_model.rds")
+
+#load the load:
+production_model <- readRDS("production_model.rds")
+
+#using the loaded model to make prediction on unseen data
+final_predictions <- predict(loaded_model,unseen_data)
+
+
+
+
+
+# 11.1 MAKING PEDICTION AND BUILDING CONFUSION TABLE----
+prediction <- predict(model,test_datawithoutY)  # check type, terms in case of classification model.
+
+predictions <- ifelse(probabilities > 0.5,'pos','neg')
+# summarize accuracy
+table(predictions, PimaIndiansDiabetes$diabetes)
+
+
+library(pROC)
+
+#Plotting the Reciever operating characteristic curve
+roc(PimaIndiansDiabetes$diabetes,fit$fitted.values,plot=TRUE)
+
+#Finding the area under the curve
+auc(PimaIndiansDiabetes$diabetes,fit$fitted.values,plot=TRUE)
+
+
+
+
+
+
+
+# 12. PRODUCTIONALIZING: shiny server, Plumber API.----
+# XXXXXXXXXXXXXXXXXXXXXXX
+
+# 13. AUTOMATING: kubernetics, cronjob
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
